@@ -1,86 +1,165 @@
-from  pathlib import Path
+from pathlib import Path
 
-def readfileandfolder():
-    path =  Path('')
-    items = list(path.rglob('*'))
-    for i,item in enumerate(items):
-        print(f"{i+1}  : {item}")
+BASE_DIR = Path("data").resolve()
 
 
-def createfile():
+def ensure_base_dir() -> None:
+    BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_safe_path(raw_name: str) -> tuple[bool, Path | None, str]:
+    name = raw_name.strip()
+    if not name:
+        return False, None, "File name cannot be empty."
+
+    if Path(name).is_absolute():
+        return False, None, "Absolute paths are not allowed."
+
+    candidate = (BASE_DIR / name).resolve()
+
+    try:
+        candidate.relative_to(BASE_DIR)
+    except ValueError:
+        return False, None, "Invalid path. Stay inside the project data folder."
+
+    return True, candidate, ""
+
+
+def readfileandfolder() -> None:
+    ensure_base_dir()
+    items = list(BASE_DIR.rglob("*"))
+
+    print(f"\nFiles and folders inside: {BASE_DIR}")
+    if not items:
+        print("No files/folders found yet.")
+        return
+
+    for i, item in enumerate(items, start=1):
+        marker = "[DIR]" if item.is_dir() else "[FILE]"
+        print(f"{i}: {marker} {item.relative_to(BASE_DIR)}")
+
+
+def createfile() -> None:
     try:
         readfileandfolder()
-        name = input("Please tell the name of the file: ")
-        p = Path(name)
-        if not p.exists():
-            with open(p, 'w') as r:
-                text = input("Would you also like to add some text in the file? (Y/N) ")
-                if text.upper() == "Y":
-                    content = input("Please write the content: ")
-                    r.write(content)
-            print("File created successfully!")
-        else:
-            print("This file already exists")
+        name = input("\nPlease tell the name of the file: ")
+        ok, p, err = get_safe_path(name)
+        if not ok or p is None:
+            print(err)
+            return
+
+        if p.exists():
+            print("This file already exists.")
+            return
+
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("", encoding="utf-8")
+
+        text = input("Would you also like to add some text in the file? (Y/N): ")
+        if text.strip().upper() == "Y":
+            content = input("Please write the content: ")
+            p.write_text(content, encoding="utf-8")
+
+        print("File created successfully!")
     except Exception as err:
-        print(f"An error occurred as {err}")
+        print(f"An error occurred: {err}")
 
-def readfile():
+
+def readfile() -> None:
     try:
-     readfileandfolder()
+        readfileandfolder()
+        name = input("\nEnter the name of the file you want to read: ")
+        ok, p, err = get_safe_path(name)
+        if not ok or p is None:
+            print(err)
+            return
 
-     name=input("Enter the name of the file you wanna read")
-     p = Path(name)
+        if not p.exists():
+            print("File does not exist.")
+            return
 
-     if p.exists():
-        with open(p,'r') as f:
-            content=f.read()
-            print(content)
-     else:
-        print("File does not exist")
+        if not p.is_file():
+            print("Given path is a folder, not a file.")
+            return
+
+        content = p.read_text(encoding="utf-8")
+        print("\n--- File Content Start ---")
+        print(content)
+        print("--- File Content End ---")
     except Exception as e:
-        print(e)
+        print(f"An error occurred: {e}")
 
-def updatefile():
+
+def updatefile() -> None:
     try:
-     readfileandfolder()
-     name=input("Enter the name of the file you wanna read")
-     p = Path(name)
+        readfileandfolder()
+        name = input("\nEnter the name of the file you want to update: ")
+        ok, p, err = get_safe_path(name)
+        if not ok or p is None:
+            print(err)
+            return
 
-     if p.exists():
-         with  open(p,'a') as g:
-             content=input("Please type in what do  you wanna update")
-             g.write("\n" + content)
-             print("Content has been successfully appended")
-     else:
-         print("File does not exist")        
+        if not p.exists():
+            print("File does not exist.")
+            return
+
+        if not p.is_file():
+            print("Given path is a folder, not a file.")
+            return
+
+        content = input("Please type what you want to append: ")
+        if not content.strip():
+            print("Empty update skipped.")
+            return
+
+        existing = p.read_text(encoding="utf-8")
+        prefix = "\n" if existing and not existing.endswith("\n") else ""
+        p.write_text(existing + prefix + content, encoding="utf-8")
+        print("Content has been successfully appended.")
     except Exception as e:
-        print(e)
+        print(f"An error occurred: {e}")
 
-def deletefile():
+
+def deletefile() -> None:
     try:
-     readfileandfolder()
-     name=input("Enter the name of the file you wanna read")
-     p = Path(name)
+        readfileandfolder()
+        name = input("\nEnter the name of the file you want to delete: ")
+        ok, p, err = get_safe_path(name)
+        if not ok or p is None:
+            print(err)
+            return
 
-     if p.exists():
-         p.unlink()
-         print("File deleted")
-     else:
-         print("file  does not exist")
+        if not p.exists():
+            print("File does not exist.")
+            return
+
+        if not p.is_file():
+            print("Given path is a folder, not a file.")
+            return
+
+        p.unlink()
+        print("File deleted.")
     except Exception as e:
-        print(e)
-        
-print("press 1 for creating a file")
-print("press 2 for reading a file")
-print("press 3 for updating a file")
-print("press 4 for deleting a file")
+        print(f"An error occurred: {e}")
 
-check=int(input("please tell your response"))
-if  check == 1:
-    createfile()
-if check == 2:
-    readfile()
-if check == 3:
-    updatefile()
-if check == 4:
-    deletefile()
+
+print("Press 1 for creating a file")
+print("Press 2 for reading a file")
+print("Press 3 for updating a file")
+print("Press 4 for deleting a file")
+
+try:
+    check = int(input("Please tell your response: "))
+except ValueError:
+    print("Invalid choice. Please enter a number from 1 to 4.")
+else:
+    if check == 1:
+        createfile()
+    elif check == 2:
+        readfile()
+    elif check == 3:
+        updatefile()
+    elif check == 4:
+        deletefile()
+    else:
+        print("Unknown option. Please choose between 1 and 4.")

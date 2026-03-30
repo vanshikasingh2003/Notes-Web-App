@@ -1,0 +1,5 @@
+- [x] Refactor `main.py` with safe base directory and input/path validation
+- [x] Harden CRUD operations for edge cases
+- [x] Improve file/folder listing behavior under base directory
+- [x] Improve menu handling for invalid inputs and unknown choices
+- [x] Update TODO progress after implementation
